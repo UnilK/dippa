@@ -1,0 +1,15 @@
+27.06.2026 20.40-21.40 Learning to fly the DJI mini 3 drone at Silkkiniitty, Tapiola.
+First take-off ended in an uncontrollable crash to a nearby bush, no risk of injury. 
+This happened because I forgot to remove the gimbal cover and had no experience with the contorls.
+
+28.06.2026 13.00-15.00 Learning to fly the DJI mini 3 drone near Silkkiniitty, Tapiola.
+Precision flight training ended in a crash to a tree, no risk of injury.
+The drone started drifting slowly but uncontrollaby before the crash,
+likely because of the loss of GNSS signal. All rotor blades were damaged,
+but no other visual defects were observed. All rotor blades were changed.
+
+29.06.2026 13.00-16.00 Learning to fly the DJI mini 3 drone near Silkkiniitty, Tapiola.
+The drone was attacked by a swarm of bees. The drone sustained the assult without
+any damage to the rotor blades or other sensors. However, the drone was covered in bits
+of bee gore. The stains were mostly cleaned, but some stains remain behind the camera
+gimbal as I am unsure how to clean them.
