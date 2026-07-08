@@ -1,6 +1,6 @@
 import numpy as np
 
-def straight_line(num_points=100, duration=10.0,
+def straight_line(num_points=2, duration=10.0,
                   start=np.array([0.0, 0.0, 0.0]),
                   end=np.array([10.0, 0.0, 5.0])):
     """
@@ -9,12 +9,11 @@ def straight_line(num_points=100, duration=10.0,
     """
     t = np.linspace(0.0, duration, num_points)
     # Linear interpolation between start and end
-    points = (start[:, None] +
-              (end - start)[:, None] * (t / duration))
+    points = (start[:, None] + (end - start)[:, None] * (t / duration))
     return points, t
 
 
-def circular_orbit(num_points=200, duration=20.0,
+def circular_orbit(num_points=100, duration=10.0,
                    center=np.array([0.0, 0.0, 5.0]),
                    radius=10.0, clockwise=True):
     """
@@ -35,7 +34,7 @@ def circular_orbit(num_points=200, duration=20.0,
     return points, t
 
 
-def helix_climb(num_points=300, duration=30.0,
+def helix_climb(num_points=100, duration=10.0,
                 center=np.array([0.0, 0.0, 0.0]),
                 radius=5.0, height=20.0, turns=3.0):
     """
@@ -54,9 +53,9 @@ def helix_climb(num_points=300, duration=30.0,
     return points, t
 
 
-def lemniscate_figure8(num_points=400, duration=40.0,
+def lemniscate_figure8(num_points=100, duration=10.0,
                        center=np.array([0.0, 0.0, 5.0]),
-                       scale=10.0, z_amplitude=2.0):
+                       scale=10.0, z_amplitude=1.0):
     """
     3D figure-eight path (lemniscate of Bernoulli in XY, sinusoidal in Z).
     Returns: points (3 x N), t (N)
@@ -74,9 +73,8 @@ def lemniscate_figure8(num_points=400, duration=40.0,
     return points, t
 
 
-def random_waypoints_spline(num_points=50, duration=50.0,
-                            num_waypoints=6,
-                            bbox_min=np.array([-10.0, -10.0, 0.0]),
+def random_waypoints_spline(num_points=10, duration=10.0,
+                            bbox_min=np.array([-10.0, -10.0, 1.0]),
                             bbox_max=np.array([10.0, 10.0, 10.0]),
                             seed=None):
     """
@@ -86,9 +84,9 @@ def random_waypoints_spline(num_points=50, duration=50.0,
     rng = np.random.default_rng(seed)
 
     # Generate random waypoints within bounding box
-    waypoints = rng.uniform(bbox_min, bbox_max, size=(num_waypoints, 3))
+    waypoints = rng.uniform(bbox_min, bbox_max, size=(num_points, 3))
     # Waypoint times evenly spaced over duration
-    waypoint_t = np.linspace(0.0, duration, num_waypoints)
+    waypoint_t = np.linspace(0.0, duration, num_points)
 
     # Target sample times
     t = np.linspace(0.0, duration, num_points)
@@ -96,9 +94,9 @@ def random_waypoints_spline(num_points=50, duration=50.0,
     # Cubic interpolation per coordinate (Hermite-like via np.interp? Here use simple linear;
     # for actual spline, use scipy if available. Below is linear for NumPy-only.)
     # If you want real splines without SciPy, you'd implement them manually.
-    x = np.interp(t, waypoint_t, waypoints[:, 0])
-    y = np.interp(t, waypoint_t, waypoints[:, 1])
-    z = np.interp(t, waypoint_t, waypoints[:, 2])
+    x = waypoints[:, 0]
+    y = waypoints[:, 1]
+    z = waypoints[:, 2]
 
     points = np.vstack((x, y, z))
     return points, t

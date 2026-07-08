@@ -66,12 +66,7 @@ class SplineTrajectory3D:
             pos_components.append(spline(t_eval))
             vel_components.append(spline(t_eval, 1))  # derivative wrt time
 
-        pos = np.stack(pos_components, axis=-1)
-        vel = np.stack(vel_components, axis=-1)
-
-        # If input was scalar, return shape (3,) for pos/vel
-        if np.isscalar(t_query) or t_query.ndim == 0:
-            pos = pos.reshape(3)
-            vel = vel.reshape(3)
+        pos = np.stack(pos_components)
+        vel = np.stack(vel_components)
 
         return pos, vel
