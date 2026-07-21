@@ -33,10 +33,5 @@
       0.1
     ]
   ],
-  "cropacIdx1": [
-    7
-  ],
-  "cropacIdx2": [
-    6
-  ]
+  "cropac": {}
 }
