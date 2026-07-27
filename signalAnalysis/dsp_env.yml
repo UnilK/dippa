@@ -16,3 +16,6 @@ dependencies:
     - ipympl
     - pooch
     - pillow
+    - opencv-python
+    - librosa
+    - moviepy
