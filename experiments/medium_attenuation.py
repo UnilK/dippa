@@ -3,7 +3,7 @@ import numpy as np
 import pyfar as pf
 
 def air_attenuation(
-        temperature, frequencies, relative_humidity=0.5,
+        frequencies, temperature=20, relative_humidity=0.5,
         atmospheric_pressure=101325, saturation_vapor_pressure=None):
     r"""Calculate the pure tone attenuation of sound in air according to
     ISO 9613-1.

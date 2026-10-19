@@ -28,5 +28,5 @@ def load_array(path, calibrationPath=None):
     
     return array
 
-def circle8():
+def array_circle8():
     return load_array("circle_array8.json", "circle_array8_calibration.json")

@@ -39,16 +39,31 @@ py::array_t<float> sinc_resample(
         return y;
     };
 
-    for(int i=0; i<n; i++){
+    for(ssize_t j=0; j<m; j++) out(j) = 0.0f;
+
+    // for(int i=0; i<n; i++){
         
-        int l = std::floor(i * ratio), r = std::ceil(i * ratio);
-        if(l == r) r++;
+    //     int l = std::floor(i * ratio), r = std::ceil(i * ratio);
+    //     if(l == r) r++;
 
-        l = std::min(m-1, l);
-        double ll = l*iratio, rr = r*iratio;
+    //     l = std::min(m-1, l);
+    //     double ll = l*iratio, rr = r*iratio;
 
-        for(;l >= 0 && i - ll <= dzeros; l--, ll-=iratio) out(l) += in(i)*sinc(i-ll)*window(i-ll);
-        for(;r < m && rr - i <= dzeros; r++, rr+=iratio) out(r) += in(i)*sinc(rr-i)*window(rr-i);
+    //     for(;l >= 0 && i - ll <= dzeros; l--, ll-=iratio) out(l) += in(i)*sinc(i-ll)*window(i-ll);
+    //     for(;r < m && rr - i <= dzeros; r++, rr+=iratio) out(r) += in(i)*sinc(rr-i)*window(rr-i);
+    // }
+
+    for(int i=0; i<n; i++){
+
+        int l = (int)std::ceil((i-dzeros) * ratio);
+        int r = (int)std::floor((i+dzeros) * ratio);
+        l = std::max(0, l);
+        r = std::min(r, m-1);
+
+        for(int ii=l; ii<=r; ii++){
+            double d = i - ii*iratio;
+            out(ii) += in(i)*sinc(d)*window(d);
+        }
     }
 
     return OUT;

@@ -31,12 +31,7 @@ def mvdr_weights(R, steering_vectors):
 def beamform_wideband(x, w):
     return np.sum(np.conj(w) * x, axis=0)
 
-def fb_shuffle(mp):
-    m = mp.shape[1]
-    nix = np.array([np.argmin(np.linalg.norm(mp + mp[:,i][:,None], axis=0)) for i in range(m)])
-    ix2, ix1 = np.meshgrid(nix, nix)
-    return ix1, ix2
-
+""" return number of valid bins, frequencies, valid indices"""
 def valid_frequency_bins(fmin, fmax, N, sr):
     f = np.fft.fftfreq(N, 1 / sr)
     valid = np.where((f >= fmin) & (f <= fmax))[0]
@@ -48,22 +43,26 @@ def compute_snapshot(signal, window, valid):
 
 """ input has shape(m, N) output has shape (N, m, m)"""
 def compute_covariance_matrices(snapshot):
-    snapshot.T[:,:,None] @ np.conj(snapshot.T[:,None,:])
+    return snapshot.T[:,:,None] @ np.conj(snapshot.T[:,None,:])
 
-"""audio has shape (mics, samples)"""
-def analyze_array_signal(audio, N, step, valid, sensor_array, fb_average):
-    window = np.hanning(N)[None,:]
+def fb_average(covar, sensor_array):
+    mp = sensor_array
+    m = mp.shape[1]
+    nix = np.array([np.argmin(np.linalg.norm(mp + mp[:,i][:,None], axis=0)) for i in range(m)])
+    ix2, ix1 = np.meshgrid(nix, nix)
+    return (covar + np.conj(covar[:,ix1, ix2])) * 0.5
+
+"""audio has shape (mics, samples). returns number of snapshots, time indices, stft"""
+def stft(audio, window, step, valid):
+    if len(window.shape) == 1:
+        window = window[None,:]
+    N = len(window)
     tidx = []
     snaps = []
-    covars = []
-    ix1, ix2 = fb_shuffle(sensor_array)
     for i in range(0, audio.shape[1]-N+1, step):
         tidx.append(i)
         snap = compute_snapshot(audio[:,i,i+N], window, valid)
         snaps.append(snap)
-        covar = compute_covariance_matrices(snap)
-        if fb_average:
-            covar = (covar + np.conj(covar[:,ix1, ix2])) * 0.5
-        covars.append(covar)
     
-    return len(tidx), np.array(tidx), np.array(snaps), np.array(covars)
+    return len(tidx), np.array(tidx), np.array(snaps)
+
