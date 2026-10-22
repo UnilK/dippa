@@ -73,9 +73,9 @@ def get_audio_from_source(source, mono=True):
     else:
         raise TypeError("bad scene audio type")
 
-def air_attenuate(audio, position_data):
+def air_attenuate(audio, sr, position_data):
     N = 64
-    f = np.fft.rfftfreq(N)
+    f = np.fft.rfftfreq(N, 1/sr)
     a = db2lin(air_attenuation(f).freq[0])
     if isinstance(position_data, tuple):
         n, m = audio.shape()
@@ -94,7 +94,16 @@ def propagate_audio(position_data, mic_positions, audio, sr):
         x = propagationmod.simulate_audio_propagation(sr, mic_positions, pos, vel, audio)
     else:
         x = propagationmod.static_audio_propagation(sr, mic_positions, position_data, audio)
-    return air_attenuate(x, position_data)
+    return air_attenuate(x, sr, position_data)
+
+def simulate_drone(position_data, mic_positions, audio, sr):
+    x = None
+    if isinstance(position_data, tuple):
+        pos, vel = position_data
+        x = propagationmod.simulate_drone(sr, mic_positions, pos, vel, audio)
+    else:
+        x = propagationmod.simulate_static_drone(sr, mic_positions, position_data, audio)
+    return air_attenuate(x, sr, position_data)
 
 def rms_normalize(x):
     return x / (np.sqrt(np.mean(x * x)) + 1e-30)
@@ -140,4 +149,8 @@ def pink_diffuse_noise(n, micpos, sr):
 def prepare_scene_audio(scene, sensor_array, target_audio, duration, sr, gain = 1):
     target_audio = prepare_audio(target_audio, duration, sr) * gain
     return propagate_audio(scene.target_position, sensor_array.positions, target_audio, sr)
+
+def prepare_drone_audio(scene, sensor_array, target_audio, duration, sr, gain = 1):
+    target_audio = prepare_audio(target_audio, duration, sr) * gain
+    return simulate_drone(scene.target_position, sensor_array.positions, target_audio, sr)
     
