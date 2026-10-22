@@ -19,13 +19,27 @@ def create_distance_vectors(look_directions, microphone_positions):
 def create_steering_vectors(distance_vectors, k):
     return np.exp(1j * distance_vectors * k)
 
-def das_weights(steering_vectors):
+def wideband_das_weights(steering_vectors):
     return steering_vectors / steering_vectors.shape[-1]
 
-def mvdr_weights(R, steering_vectors):
-    w = steering_vectors @ np.linalg.inv(R)
-    norm = np.sum(np.conj(w) * steering_vectors, axis=0)
-    w /= norm[None,:]
+def diffuse_covariance_matrices(sensor_array, k):
+    m = sensor_array.shape[1]
+    dist = np.zeros((m, m), dtype=np.complex128)
+    for i in range(m):
+        for j in range(m):
+            d = sensor_array[:,i] - sensor_array[:,j]
+            dist[i,j] = np.sqrt(np.sum(d*d))
+    return np.sinc(k[:,None,None] * dist[None,:,:])
+
+def diagonal_load(covariance_matrices, LNR):
+    m = covariance_matrices.shape[-1]
+    loading = LNR * np.trace(covariance_matrices, axis1=-2, axis2=-1) / m
+    return covariance_matrices + loading[:,None,None] * np.eye(m)[None,:,:]
+
+def wideband_mvdr_weights(R, steering_vectors):
+    w = (np.linalg.inv(R) @ steering_vectors[:,:,None])[:,:,0]
+    norm = np.sum(np.conj(w) * steering_vectors, axis=-1)
+    w /= norm[:,None]
     return w
 
 def beamform_wideband(x, w):
@@ -37,9 +51,9 @@ def valid_frequency_bins(fmin, fmax, N, sr):
     validf = np.where((f >= fmin) & (f <= fmax))[0]
     return len(validf), f[validf], validf
 
-def compute_snapshot(signal, window, valid):
+def compute_snapshot(signal, window, validf):
     """signal has shape (mics, N). Output has shape (mics, len(valid))"""
-    return np.fft.rfft(signal * window)[:,valid]
+    return np.fft.rfft(signal * window)[:,validf]
 
 def compute_covariance_matrices(snapshot):
     """ input has shape(m, N) output has shape (N, m, m)"""
@@ -84,5 +98,34 @@ def istft(snapshots, window, tidx, validf):
         audio[t:t+N] += (np.fft.irfft(freq) * window)[0]
         norm[t:t+N] += (window**2)[0]
     
-    return audio / (norm + 1e-18)
+    return audio / np.maximum(norm, np.max(norm)*0.5)
 
+def psd_to_sound(psd_snapshots, window, tidx, validf):
+    """snapshots is a single-channel stft with shape (t, f). window should have enven length"""
+    if len(window.shape) == 1:
+        window = window[None,:]
+    N = window.shape[1]
+    audio = np.zeros(tidx[-1]+N, dtype=np.float32)
+    noise = np.random.randn(tidx[-1]+N).astype(np.float32)
+    norm = np.zeros(tidx[-1]+N, dtype=np.float32)
+    for i in range(len(tidx)):
+        freq = np.zeros(N//2 + 1, dtype=np.complex64)
+        t = tidx[i]
+        freq[validf] = np.fft.rfft(noise[t:t+N] * window[0])[validf]
+        freq[validf] /= np.abs(freq[validf])
+        freq[validf] *= np.sqrt(psd_snapshots[i,:])
+        audio[t:t+N] += (np.fft.irfft(freq) * window)[0]
+        norm[t:t+N] += (window**2)[0]
+    
+    return audio / np.maximum(norm, np.max(norm)*0.5)
+
+def smoothing_alpha(duration_samples, step, decay):
+    return decay**(step / duration_samples)
+
+def time_average(val, alpha):
+    """val has shape (t, ...). Values in ... are averaged over time"""
+    val_smooth = np.copy(val)
+    val_smooth[0,...] *= (1.0 - alpha)
+    for i in range(1, len(val_smooth)):
+        val_smooth[i,...] = val_smooth[i,...] * (1.0 - alpha) + val_smooth[i-1,...] * alpha
+    return val_smooth

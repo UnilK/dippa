@@ -153,4 +153,6 @@ def prepare_scene_audio(scene, sensor_array, target_audio, duration, sr, gain = 
 def prepare_drone_audio(scene, sensor_array, target_audio, duration, sr, gain = 1):
     target_audio = prepare_audio(target_audio, duration, sr) * gain
     return simulate_drone(scene.target_position, sensor_array.positions, target_audio, sr)
-    
+
+def calibrate_recorded_audio(audio, calibration):
+    return audio * calibration[:,None]
