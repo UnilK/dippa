@@ -408,8 +408,6 @@ py::array_t<float> propagate_planewave(
     }
 
     for(ssize_t i=0; i<n; i++){
-        
-        float sample = x(i) / (1e-9f + dist);
 
         for(ssize_t j=0; j<m; j++){
 
@@ -426,7 +424,7 @@ py::array_t<float> propagate_planewave(
             if(l < 0 || r >= n) continue;
 
             for(int ii=l; ii<=r; ii++){
-                y(j, ii) += sample * impulse((ii-tpos), (ii-tpos)*pin);
+                y(j, ii) += x(i) * impulse((ii-tpos), (ii-tpos)*pin);
             }
         }
     }
@@ -503,7 +501,7 @@ py::array_t<float> propagate_stationary_planewave(
         offset[j] = l;
 
         for(int ii=l; ii<=r; ii++){
-            kernel[j][ii-l] = impulse((ii-tpos), (ii-tpos)*pin) / (1e-9f + dist);
+            kernel[j][ii-l] = impulse((ii-tpos), (ii-tpos)*pin);
         }
     }
     

@@ -33,7 +33,7 @@ def diffuse_covariance_matrices(sensor_array, k):
 
 def diagonal_load(covariance_matrices, LNR):
     m = covariance_matrices.shape[-1]
-    loading = LNR * np.trace(covariance_matrices, axis1=-2, axis2=-1) / m
+    loading = LNR * np.trace(covariance_matrices, axis1=-2, axis2=-1).real / m
     return covariance_matrices + loading[:,None,None] * np.eye(m)[None,:,:]
 
 def wideband_mvdr_weights(R, steering_vectors):
@@ -64,7 +64,7 @@ def fb_average(covar, sensor_array):
     m = mp.shape[1]
     nix = np.array([np.argmin(np.linalg.norm(mp + mp[:,i][:,None], axis=0)) for i in range(m)])
     ix2, ix1 = np.meshgrid(nix, nix)
-    return (covar + np.conj(covar[:,ix1, ix2])) * 0.5
+    return (covar + np.conj(covar[...,ix1, ix2])) * 0.5
 
 def stft(audio, window, step, validf):
     """
@@ -100,20 +100,18 @@ def istft(snapshots, window, tidx, validf):
     
     return audio / np.maximum(norm, np.max(norm)*0.5)
 
-def psd_to_sound(psd_snapshots, window, tidx, validf):
+def psd_to_sound(psd_snapshots, audio_snapshots, window, tidx, validf):
     """snapshots is a single-channel stft with shape (t, f). window should have enven length"""
     if len(window.shape) == 1:
         window = window[None,:]
     N = window.shape[1]
     audio = np.zeros(tidx[-1]+N, dtype=np.float32)
-    noise = np.random.randn(tidx[-1]+N).astype(np.float32)
     norm = np.zeros(tidx[-1]+N, dtype=np.float32)
     for i in range(len(tidx)):
         freq = np.zeros(N//2 + 1, dtype=np.complex64)
-        t = tidx[i]
-        freq[validf] = np.fft.rfft(noise[t:t+N] * window[0])[validf]
-        freq[validf] /= np.abs(freq[validf])
+        freq[validf] = audio_snapshots[i,:] / (np.abs(audio_snapshots[i,:]) + 1e-18)
         freq[validf] *= np.sqrt(psd_snapshots[i,:])
+        t = tidx[i]
         audio[t:t+N] += (np.fft.irfft(freq) * window)[0]
         norm[t:t+N] += (window**2)[0]
     
@@ -129,3 +127,7 @@ def time_average(val, alpha):
     for i in range(1, len(val_smooth)):
         val_smooth[i,...] = val_smooth[i,...] * (1.0 - alpha) + val_smooth[i-1,...] * alpha
     return val_smooth
+
+def total_time_average(val):
+    """val has shape (t, ...). Values in ... are averaged over time"""
+    return np.sum(val, axis=0) / val.shape[0]

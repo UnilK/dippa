@@ -28,6 +28,18 @@ def fftwin_filt(x, filt, cut=True):
             return y[N//2: -N//2+1]
     return y
 
+def design_bump_filter(sr, mid, wid, N=2**11):
+    fmin = mid-wid
+    fmax = mid+wid
+    mi = N / sr * fmin
+    ma = N / sr * fmax
+    filt = np.zeros(N//2+1)
+    for i in range(0, N//2+1):
+        f = sr / N * i
+        if mi <= i+1 and i <= ma:
+            filt[i] = 0.5 * np.cos(((mid - f) / wid) * np.pi) + 0.5
+    return filt
+
 def extend_noise(x, target_samples):
     if len(x) < target_samples: 
         X = np.fft.rfft(x)
@@ -35,41 +47,103 @@ def extend_noise(x, target_samples):
         x = np.tile(np.fft.irfft(X), (target_samples-1)//len(x)+1)
     return x[:target_samples]
 
-def extend_audio(x, target_samples):
-    if len(x.shape) > 1:
-        if x.shape[1] >= target_samples:
-            return x[:,:target_samples]
-        fade = 2**11
-        n = x.shape[1]
-        window = np.minimum(np.minimum(np.arange(n)/fade, n/fade-np.arange(n)/fade), 1)
-        grain = x * (0.5 - 0.5 * np.cos(np.pi*window))[None,:]
-        y = np.zeros(((target_samples-1)//n+2)*n + 4 * fade)
-        for i in range(0, len(y)-n-1, n-fade):
-            y[i:i+n] += grain
-        return y[fade:fade+target_samples]
-    else: 
-        if len(x) >= target_samples:
-            return x[:target_samples]
-        fade = 2**11
-        n = len(x)
-        window = np.minimum(np.minimum(np.arange(n)/fade, n/fade-np.arange(n)/fade), 1)
-        grain = x * (0.5 - 0.5 * np.cos(np.pi*window))
-        y = np.zeros(((target_samples-1)//n+2)*n + 4 * fade)
-        for i in range(0, len(y)-n-1, n-fade):
-            y[i:i+n] += grain
-        return y[fade:fade+target_samples]
+def extend_audio(x, target_samples, fade_len=256):
+    """
+    Repeat audio to reach target length with crossfaded loop points.
 
-def get_audio_from_source(source, mono=True):
+    Parameters
+    ----------
+    x : np.ndarray
+        Audio array with shape (T,) or (C, T). Time is the last axis.
+    target_samples : int
+        Desired length along the time axis.
+    fade_len : int
+        Crossfade length in samples at each repeat boundary.
+        Use 0 for no crossfade.
+
+    Returns
+    -------
+    y : np.ndarray
+        Repeated audio with shape (target_samples,) or (C, target_samples),
+        matching the input's dimensionality.
+    """
+    x = np.asarray(x)
+    if x.ndim == 1:
+        x_proc = x[None, :]          # (1, T)
+        squeeze_back = True
+    elif x.ndim == 2:
+        x_proc = x                    # (C, T)
+        squeeze_back = False
+    else:
+        raise ValueError("x must have shape (T,) or (C, T)")
+
+    C, T = x_proc.shape
+    if target_samples <= 0:
+        return np.empty((target_samples,), dtype=x.dtype) if squeeze_back else np.empty((C, target_samples), dtype=x.dtype)
+
+    # If input already long enough, just trim.
+    if T >= target_samples:
+        y = x_proc[:, :target_samples]
+        return y[0] if squeeze_back else y
+
+    # Clamp fade_len to a safe range.
+    if fade_len is None:
+        fade_len = 0
+    fade_len = int(max(0, fade_len))
+    if fade_len > 0:
+        # Cannot crossfade more than half of the source, and
+        # keep it smaller than a fraction of the target.
+        fade_len = min(fade_len, max(1, T // 2), max(1, target_samples // 4))
+
+    # Fast path: no crossfade (tile and trim).
+    if fade_len == 0 or T < 2:
+        reps = int(np.ceil(target_samples / T))
+        y = np.tile(x_proc, reps=reps)[:, :target_samples]
+        return y[0] if squeeze_back else y
+
+    # Build crossfade ramps
+    fade_out = np.linspace(1.0, 0.0, fade_len, endpoint=False, dtype=np.float64)  # length fade_len
+    fade_in  = 1.0 - fade_out
+
+    # Accumulate repeats with overlap-add at boundaries
+    y = x_proc.copy()
+    # Loop until we reach or exceed target_samples
+    while y.shape[1] < target_samples:
+        # Overlap last fade_len of y with first fade_len of x_proc
+        prev_tail = y[:, -fade_len:].astype(np.float64, copy=False)
+        next_head = x_proc[:, :fade_len].astype(np.float64, copy=False)
+
+        cross = prev_tail * fade_out + next_head * fade_in  # shape (C, fade_len)
+
+        # Concatenate: y without its last fade_len, then crossfade, then remainder of x_proc
+        y = np.concatenate(
+            [y[:, :-fade_len], cross.astype(y.dtype, copy=False), x_proc[:, fade_len:]],
+            axis=1
+        )
+
+    # Trim to target length
+    y = y[:, :target_samples]
+
+    return y[0] if squeeze_back else y
+    
+
+def get_audio_from_source(source, toMono=True):
     if isinstance(source, str):
         audio, sr = sf.read(source, always_2d=True)
         if audio.size == 0:
             raise RuntimeError("Empty or unsupported audio file.")
-        if mono:
+        if toMono:
             return (audio[:, 0], sr)
         else:
             return (audio.T, sr)
     elif isinstance(source, tuple):
-        return source
+        if toMono:
+            if len(source[0].shape) > 1:
+                return (source[0][0,:], source[1])
+            else:
+                return source
+        else:
+            return source
     else:
         raise TypeError("bad scene audio type")
 
@@ -96,6 +170,16 @@ def propagate_audio(position_data, mic_positions, audio, sr):
         x = propagationmod.static_audio_propagation(sr, mic_positions, position_data, audio)
     return air_attenuate(x, sr, position_data)
 
+def propagate_planewave_audio(position_data, mic_positions, audio, sr):
+    x = None
+    if isinstance(position_data, tuple):
+        pos, vel = position_data
+        x = propagationmod.planewave_propagation(sr, np.linalg.norm(pos, axis=1), mic_positions, pos, audio)
+    else:
+        x = propagationmod.static_planewave_propagation(
+            sr, np.linalg.norm(position_data), mic_positions, position_data, audio)
+    return air_attenuate(x, sr, position_data)
+
 def simulate_drone(position_data, mic_positions, audio, sr):
     x = None
     if isinstance(position_data, tuple):
@@ -108,7 +192,7 @@ def simulate_drone(position_data, mic_positions, audio, sr):
 def rms_normalize(x):
     return x / (np.sqrt(np.mean(x * x)) + 1e-30)
 
-def prepare_audio(audio_source, duration, sr, toMono=True):
+def prepare_audio(audio_source, duration, sr, toMono=True, normalize=True):
     
     audio, sr2 = get_audio_from_source(audio_source, toMono)
     if sr2 != sr:
@@ -117,16 +201,17 @@ def prepare_audio(audio_source, duration, sr, toMono=True):
         else:
             audio = resamplemod.sinc_resample(audio, sr/sr2, 16)
 
-    audio = rms_normalize(audio)
+    if normalize:
+        audio = rms_normalize(audio)
     return extend_audio(audio, duration * sr)
 
 def create_uncorrelated_noise(m, n):
     return rms_normalize(np.random.randn(m, n))
 
-def create_diffuse_noise(n, micpos, sr):
+def create_diffuse_noise(n, micpos, sr, quality=1):
     m = micpos.shape[1]
     noise = np.zeros((m, n), dtype=np.float32)
-    for i in range(4):
+    for i in range(quality):
         # simulate plane waves arriving from random directions.
         pos = np.random.randn(3, n).astype(np.float32)
         pos /= np.linalg.norm(pos, axis=0)
@@ -146,12 +231,16 @@ def pink_diffuse_noise(n, micpos, sr):
     noise = create_diffuse_noise(n, micpos, sr)
     return pink_filter(noise, sr)
 
-def prepare_scene_audio(scene, sensor_array, target_audio, duration, sr, gain = 1):
-    target_audio = prepare_audio(target_audio, duration, sr) * gain
+def prepare_spatial_audio(scene, sensor_array, target_audio, duration, sr, gain = 1, normalize=True):
+    target_audio = prepare_audio(target_audio, duration, sr, normalize=normalize) * gain
     return propagate_audio(scene.target_position, sensor_array.positions, target_audio, sr)
 
-def prepare_drone_audio(scene, sensor_array, target_audio, duration, sr, gain = 1):
-    target_audio = prepare_audio(target_audio, duration, sr) * gain
+def prepare_planewave_audio(scene, sensor_array, target_audio, duration, sr, gain = 1, normalize=True):
+    target_audio = prepare_audio(target_audio, duration, sr, normalize=normalize) * gain
+    return propagate_planewave_audio(scene.target_position, sensor_array.positions, target_audio, sr)
+
+def prepare_drone_audio(scene, sensor_array, target_audio, duration, sr, gain = 1, normalize=True):
+    target_audio = prepare_audio(target_audio, duration, sr, normalize=normalize) * gain
     return simulate_drone(scene.target_position, sensor_array.positions, target_audio, sr)
 
 def calibrate_recorded_audio(audio, calibration):

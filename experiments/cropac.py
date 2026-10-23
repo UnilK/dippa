@@ -47,7 +47,7 @@ def blended_ch_das_weights(look_direction, order, mic_array, k):
     das_w1 = create_steering_vectors(create_distance_vectors(look_direction, mic_array), k[:,None]) / m * 2
 
     for i in range(8):
-        if (i&1)^(order&1):
+        if (i&1)^(order&1)^1:
             das_w1[:,i] = np.zeros_like(das_w1[:,i])
 
     j0_zero = 2.4048
@@ -63,7 +63,7 @@ def blended_ch_das_weights(look_direction, order, mic_array, k):
 
     return w1
 
-def create_optimal_secondary_weights(w1, steering_vectors, constraints, S=None):
+def optimal_secondary_weights(w1, steering_vectors, constraints, S=None):
     
     N = w1.shape[1]
     nsdim = N - len(constraints)
