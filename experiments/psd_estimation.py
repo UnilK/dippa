@@ -57,25 +57,31 @@ class CroPaC_PSDE(PSDEstimator):
         return covariance_psd(self.w1, covariance_matrices, self.w2)
 
 class DOBEC_PSDE(PSDEstimator):
-    def __init__(self, params: PSDEParams):
+    def __init__(self, params: PSDEParams, threshold):
+        self.threshold = threshold
         self.update_parameters(params)
     def update_parameters(self, params: PSDEParams):
         Rd = diffuse_covariance_matrices(params.sensor_postions, params.k)
         self.w1 = blended_ch_das_weights(params.target_direction, 1, params.sensor_postions, params.k)
         self.w2 = optimal_secondary_weights(self.w1, params.steering_vectors, [Rd])
+        self.w_das = wideband_das_weights(params.steering_vectors)
     def estimate_psd(self, covariance_matrices):
-        return covariance_psd(self.w1, covariance_matrices, self.w2)
+        return np.maximum(covariance_psd(self.w1, covariance_matrices, self.w2),
+            self.threshold * covariance_psd(self.w_das, covariance_matrices, self.w_das))
 
 class NOBEC_PSDE(PSDEstimator):
-    def __init__(self, params: PSDEParams, LNR):
+    def __init__(self, params: PSDEParams, LNR, threshold):
         self.LNR = LNR
+        self.threshold = threshold
         self.update_parameters(params)
     def update_parameters(self, params: PSDEParams):
         R = diagonal_load(params.covariance_matrices, self.LNR)
         self.w1 = blended_ch_das_weights(params.target_direction, 1, params.sensor_postions, params.k)
         self.w2 = optimal_secondary_weights(self.w1, params.steering_vectors, [R])
+        self.w_mvdr = wideband_mvdr_weights(R, params.steering_vectors)
     def estimate_psd(self, covariance_matrices):
-        return covariance_psd(self.w1, covariance_matrices, self.w2)
+        return np.maximum(covariance_psd(self.w1, covariance_matrices, self.w2),
+            self.threshold * covariance_psd(self.w_mvdr, covariance_matrices, self.w_mvdr))
 
 class DMVDR_PSDE(PSDEstimator):
     def __init__(self, params: PSDEParams, LNR):
