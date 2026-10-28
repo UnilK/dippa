@@ -245,3 +245,9 @@ def prepare_drone_audio(scene, sensor_array, target_audio, duration, sr, gain = 
 
 def calibrate_recorded_audio(audio, calibration):
     return audio * calibration[:,None]
+
+def normalize_channels(audio):
+    means = np.sum(audio**2, axis=-1) / audio.shape[-1]
+    norm = np.sqrt(np.max(means) / means[:,None])
+    return audio * norm
+

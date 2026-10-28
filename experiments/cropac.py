@@ -2,7 +2,6 @@ import numpy as np
 from beamforming import create_distance_vectors, polar_to_unitdir, create_steering_vectors
 from util import *
 from scipy.special import jv
-import types
 
 def planar_directions(directions):
     return np.atan2(directions[:,1], directions[:,0])
@@ -77,7 +76,7 @@ def optimal_secondary_weights(w1, steering_vectors, constraints, S=None):
     OH = Vh[:,-nsdim:,:]
     O = np.conj(np.transpose(OH, axes=(0, 2, 1)))
 
-    if isinstance(S, types.NoneType):
+    if S is None:
         # Use S = np.eye()
         w2 = (O @ np.linalg.pinv(O) @ steering_vectors[:,:,None])[:,:,0]
     else:
