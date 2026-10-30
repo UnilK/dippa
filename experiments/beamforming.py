@@ -13,6 +13,24 @@ def to_polar_angles(point):
     zeni = np.atan2(np.sqrt(x*x+y*y), z)
     return (azi, zeni)
 
+# half-sphere of look directions
+def create_look_directions(n, fov):
+
+    fov += 1e-5
+    x = np.linspace(-fov, fov, n)
+    y = np.linspace(-fov, fov, n)
+
+    xv, yv = np.meshgrid(x, y)
+    
+    xv = np.reshape(xv, -1)
+    yv = np.reshape(yv, -1)
+    aziv = np.atan2(yv, xv)
+    zeniv = np.sqrt(xv*xv + yv*yv)
+
+    unit_look_direction = polar_to_unitdir(aziv, zeniv)
+
+    return (unit_look_direction, aziv, zeniv)
+
 def create_distance_vectors(look_directions, microphone_positions):
     return look_directions @ microphone_positions
 

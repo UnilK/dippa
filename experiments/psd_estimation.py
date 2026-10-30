@@ -145,11 +145,3 @@ def si_psd_sdr(noise_snaps, target_snaps, estimate_snaps):
     alpha = np.sum(sq_et * sq_t) / np.sum(sq_et * sq_et + sq_n * sq_n)
 
     return pow2db(np.sum(sq_t**2)) - pow2db(np.sum((sq_t - alpha * sq_et)**2) + alpha**2 * np.sum(sq_n**2))
-    
-    #return pow2db(np.sum(np.maximum(0, sq_et**2 * sq_t**2))) - pow2db(np.sum(sq_n**2))
-    # return pow2db(np.sum(sq_et*sq_t)) - pow2db(np.sum(sq_n**2))
-    # return pow2db(np.sum(sq_et**2)) - pow2db(np.sum(sq_n**2))
-    # return pow2db(np.sum(sq_t**2)) - pow2db(np.sum((sq_et - sq_t)**2)) - pow2db(np.sum(sq_n**2))
-
-    # scale-invariant signal-to-distortion ratio for PSD estimates
-    # return pow2db(np.sum((alpha * sq_t)**2) / np.sum((alpha * sq_t - sq_e)**2))
