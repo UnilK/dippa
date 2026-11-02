@@ -135,13 +135,11 @@ class CroPaC_PSDE(PSDEstimator):
 
 def si_psd_sdr(noise_snaps, target_snaps, estimate_snaps):
 
-    sq_n = np.sqrt(noise_snaps)
-    sq_t = np.sqrt(target_snaps)
-    sq_e = np.sqrt(estimate_snaps)
+    n = np.sqrt(noise_snaps)
+    t = np.sqrt(target_snaps)
+    e = np.sqrt(estimate_snaps)
+    et = np.maximum(e-n,0)
 
-    beta = np.sum(sq_e * sq_n) / np.sum(sq_n * sq_n)
-    sq_et = sq_e - sq_n * beta
+    alpha = np.sum(et * t) / np.sum(et * et + n * n)
 
-    alpha = np.sum(sq_et * sq_t) / np.sum(sq_et * sq_et + sq_n * sq_n)
-
-    return pow2db(np.sum(sq_t**2)) - pow2db(np.sum((sq_t - alpha * sq_et)**2) + alpha**2 * np.sum(sq_n**2))
+    return pow2db(np.sum(t**2)) - pow2db(np.sum((t - alpha * et)**2) + alpha**2 * np.sum(n**2))
