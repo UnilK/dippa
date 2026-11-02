@@ -1,6 +1,7 @@
 import numpy as np
 
 FEATURE_LENGTH = 85
+NMFCC = 24
 
 from scipy.fft import dct
 
@@ -108,21 +109,26 @@ def compute_mfcc_from_psd(
         return mfcc[0]
     return mfcc
 
-
-def extract_mfcc_feature(psd, sr, fmin, fmax, N, validf, nmfcc=24):
-
-    feat = np.zeros((FEATURE_LENGTH, N//2+1))
+def extract_raw_mfcc(psd, sr, fmin, fmax, N, validf, nmfcc=NMFCC):
+    feat = np.zeros((len(psd), N//2+1))
     feat[:,validf] = psd
+    return compute_mfcc_from_psd(feat, sr=sr, n_mels=40, n_mfcc=nmfcc, fmin=fmin, fmax=fmax, lifter=22)
 
-    mfcc = compute_mfcc_from_psd(feat, sr=sr, n_mels=40, n_mfcc=nmfcc, fmin=fmin, fmax=fmax, lifter=22)
-
-    mfcc -= np.max(mfcc)
+def normalize_raw_mfcc(mfcc):
+    mfcc = mfcc - np.max(mfcc)
     mfcc = np.maximum(mfcc, -60)
     mfcc /= np.abs(np.min(mfcc))
     mfcc += 1
-
     return mfcc
 
-def extract_stft_feature(psd):
-    feature = np.pow(psd, 0.15)
+def extract_mfcc_feature(psd, sr, fmin, fmax, N, validf, nmfcc=NMFCC):
+    return normalize_raw_mfcc(extract_raw_mfcc(psd, sr, fmin, fmax, N, validf, nmfcc))
+
+def extract_raw_stft(psd):
+    return np.pow(psd, 0.15)
+
+def normalize_raw_stft(feature):
     return feature / np.max(feature)
+
+def extract_stft_feature(psd):
+    return normalize_raw_stft(extract_raw_stft(psd))
