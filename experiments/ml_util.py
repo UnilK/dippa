@@ -1,6 +1,10 @@
 import numpy as np
 
-FEATURE_LENGTH = 85
+SR = 44100
+WINDOW_LENGTH = 2**10
+WINDOW_STEP = WINDOW_LENGTH // 2
+WINDOW = np.hanning(WINDOW_LENGTH)**0.5
+FEATURE_LENGTH = (SR - WINDOW_LENGTH + WINDOW_STEP - 1) // WINDOW_STEP
 NMFCC = 24
 
 from scipy.fft import dct
