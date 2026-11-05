@@ -1,5 +1,6 @@
 import numpy as np
 from beamforming import valid_frequency_bins
+from scipy.fft import dct
 
 SR = 44100
 WINDOW_LENGTH = 2**10
@@ -10,8 +11,6 @@ NMFCC = 24
 FMIN = 750
 FMAX = 6000
 NSTFT, VALID_FREQUENCIES, VALID_FREQUENCY_INDICES = valid_frequency_bins(FMIN, FMAX, WINDOW_LENGTH, SR)
-
-from scipy.fft import dct
 
 def hz_to_mel(f):
     # HTK-style mel
