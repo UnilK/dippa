@@ -1,4 +1,5 @@
 import numpy as np
+from beamforming import valid_frequency_bins
 
 SR = 44100
 WINDOW_LENGTH = 2**10
@@ -6,6 +7,9 @@ WINDOW_STEP = WINDOW_LENGTH // 2
 WINDOW = np.hanning(WINDOW_LENGTH)**0.5
 FEATURE_LENGTH = (SR - WINDOW_LENGTH + WINDOW_STEP - 1) // WINDOW_STEP
 NMFCC = 24
+FMIN = 750
+FMAX = 6000
+NSTFT, VALID_FREQUENCIES, VALID_FREQUENCY_INDICES = valid_frequency_bins(FMIN, FMAX, WINDOW_LENGTH, SR)
 
 from scipy.fft import dct
 
